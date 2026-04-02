@@ -1,0 +1,199 @@
+Requirements  需求
+For these examples, you will need to:
+对于这些示例，您需要：
+Install the LangChain package
+安装 LangChain 包
+Set up a Claude (Anthropic) account and get an API key
+设置 Claude（Anthropic）账户并获取 API 密钥
+Set the ANTHROPIC_API_KEY environment variable in your terminal
+在你的终端中设置 ANTHROPIC_API_KEY 环境变量
+Although these examples use Claude, you can use any supported model by changing the model name in the code and setting up the appropriate API key.
+虽然这些示例使用了 Claude，但你可以通过在代码中更改模型名称并设置相应的 API 密钥来使用任何支持的模型。
+​
+Build a basic agent  构建基础代理
+Start by creating a simple agent that can answer questions and call tools. The agent will use Claude Sonnet 4.6 as its language model, a basic weather function as a tool, and a simple prompt to guide its behavior.
+首先创建一个能够回答问题和调用工具的简单代理。该代理将使用 Claude Sonnet 4.6 作为其语言模型，一个基本的天气函数作为工具，以及一个简单的提示来指导其行为。
+  复制
+from langchain.agents import create_agent
+
+def get_weather(city: str) -> str:
+    """Get weather for a given city."""
+    return f"It's always sunny in {city}!"
+
+agent = create_agent(
+    model="claude-sonnet-4-6",
+    tools=[get_weather],
+    system_prompt="You are a helpful assistant",
+)
+
+# Run the agent
+agent.invoke(
+    {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+)
+To learn how to trace your agent with LangSmith, see the LangSmith documentation.
+要学习如何使用 LangSmith 跟踪您的代理，请参阅 LangSmith 文档。
+​
+Build a real-world agent  构建一个实际世界的代理
+Next, build a practical weather forecasting agent that demonstrates key production concepts:
+接下来，构建一个实用的天气预报代理，展示关键的生产概念：
+Detailed system prompts for better agent behavior
+为更好的代理行为创建详细的系统提示
+Create tools that integrate with external data
+创建与外部数据集成的工具
+Model configuration for consistent responses
+模型配置以获得一致的响应
+Structured output for predictable results
+结构化输出以获得可预测的结果
+Conversational memory for chat-like interactions
+对话记忆以实现类似聊天的交互
+Create and run the agent to test the fully functional agent
+创建并运行代理以测试功能完整的代理
+Let’s walk through each step:
+让我们逐步进行：
+1
+Define the system prompt  定义系统提示
+
+The system prompt defines your agent’s role and behavior. Keep it specific and actionable:
+系统提示定义了你的代理的角色和行为。保持其具体和可执行：
+  复制
+SYSTEM_PROMPT = """You are an expert weather forecaster, who speaks in puns.
+
+You have access to two tools:
+
+- get_weather_for_location: use this to get the weather for a specific location
+- get_user_location: use this to get the user's location
+
+If a user asks you for the weather, make sure you know the location. If you can tell from the question that they mean wherever they are, use the get_user_location tool to find their location."""
+2
+Create tools  创建工具
+
+Tools let a model interact with external systems by calling functions you define. Tools can depend on runtime context and also interact with agent memory.
+工具允许模型通过调用您定义的函数与外部系统交互。工具可以依赖于运行时上下文，并且还可以与代理内存交互。
+Notice below how the get_user_location tool uses runtime context:
+请注意下方 get_user_location 工具如何使用运行时上下文：
+  复制
+from dataclasses import dataclass
+from langchain.tools import tool, ToolRuntime
+
+@tool
+def get_weather_for_location(city: str) -> str:
+    """Get weather for a given city."""
+    return f"It's always sunny in {city}!"
+
+@dataclass
+class Context:
+    """Custom runtime context schema."""
+    user_id: str
+
+@tool
+def get_user_location(runtime: ToolRuntime[Context]) -> str:
+    """Retrieve user information based on user ID."""
+    user_id = runtime.context.user_id
+    return "Florida" if user_id == "1" else "SF"
+Tools should be well-documented: their name, description, and argument names become part of the model’s prompt. LangChain’s @tool decorator adds metadata and enables runtime injection with the ToolRuntime parameter. Learn more in the tools guide.
+工具应该有良好的文档说明：它们的名称、描述和参数名称都将成为模型提示的一部分。LangChain 的 @tool 装饰器添加元数据，并通过 ToolRuntime 参数启用运行时注入。更多内容请参考工具指南。
+3
+Configure your model  配置你的模型
+
+Set up your language model with the right parameters for your use case:
+为您的用例设置正确的语言模型参数：
+  复制
+from langchain.chat_models import init_chat_model
+
+model = init_chat_model(
+    "claude-sonnet-4-6",
+    temperature=0.5,
+    timeout=10,
+    max_tokens=1000
+)
+Depending on the model and provider chosen, initialization parameters may vary; refer to their reference pages for details.
+根据所选模型和提供者的不同，初始化参数可能会有所变化；请参考它们的文档页面获取详细信息。
+4
+Define response format  定义响应格式
+
+Optionally, define a structured response format if you need the agent responses to match a specific schema.
+可选地，如果您需要代理的响应匹配特定的模式，可以定义一个结构化的响应格式。
+  复制
+from dataclasses import dataclass
+
+# We use a dataclass here, but Pydantic models are also supported.
+@dataclass
+class ResponseFormat:
+    """Response schema for the agent."""
+    # A punny response (always required)
+    punny_response: str
+    # Any interesting information about the weather if available
+    weather_conditions: str | None = None
+5
+Add memory  添加记忆
+
+Add memory to your agent to maintain state across interactions. This allows the agent to remember previous conversations and context.
+为您的智能体添加记忆功能，以在交互中保持状态。这使智能体能够记住之前的对话和上下文。
+  复制
+from langgraph.checkpoint.memory import InMemorySaver
+
+checkpointer = InMemorySaver()
+In production, use a persistent checkpointer that saves message history to a database. See Add and manage memory for more details.
+在生产环境中，使用一个持久化检查点器将消息历史保存到数据库中。有关详细信息，请参阅“添加和管理内存”。
+6
+Create and run the agent
+创建并运行代理
+
+Now assemble your agent with all the components and run it!
+现在用所有组件组装你的代理并运行它！
+  复制
+from langchain.agents.structured_output import ToolStrategy
+
+agent = create_agent(
+    model=model,
+    system_prompt=SYSTEM_PROMPT,
+    tools=[get_user_location, get_weather_for_location],
+    context_schema=Context,
+    response_format=ToolStrategy(ResponseFormat),
+    checkpointer=checkpointer
+)
+
+# `thread_id` is a unique identifier for a given conversation.
+config = {"configurable": {"thread_id": "1"}}
+
+response = agent.invoke(
+    {"messages": [{"role": "user", "content": "what is the weather outside?"}]},
+    config=config,
+    context=Context(user_id="1")
+)
+
+print(response['structured_response'])
+# ResponseFormat(
+#     punny_response="Florida is still having a 'sun-derful' day! The sunshine is playing 'ray-dio' hits all day long! I'd say it's the perfect weather for some 'solar-bration'! If you were hoping for rain, I'm afraid that idea is all 'washed up' - the forecast remains 'clear-ly' brilliant!",
+#     weather_conditions="It's always sunny in Florida!"
+# )
+
+
+# Note that we can continue the conversation using the same `thread_id`.
+response = agent.invoke(
+    {"messages": [{"role": "user", "content": "thank you!"}]},
+    config=config,
+    context=Context(user_id="1")
+)
+
+print(response['structured_response'])
+# ResponseFormat(
+#     punny_response="You're 'thund-erfully' welcome! It's always a 'breeze' to help you stay 'current' with the weather. I'm just 'cloud'-ing around waiting to 'shower' you with more forecasts whenever you need them. Have a 'sun-sational' day in the Florida sunshine!",
+#     weather_conditions=None
+# )
+Show Full example code  显示完整示例代码
+
+To learn how to trace your agent with LangSmith, see the LangSmith documentation.
+要学习如何使用 LangSmith 跟踪您的代理，请参阅 LangSmith 文档。
+Congratulations! You now have an AI agent that can:
+恭喜！你现在拥有一个能够：
+Understand context and remember conversations
+理解上下文并记住对话
+Use multiple tools intelligently
+智能使用多种工具
+Provide structured responses in a consistent format
+以一致的格式提供结构化回复的 AI 代理
+Handle user-specific information through context
+通过上下文处理用户特定信息
+Maintain conversation state across interactions
+跨交互维护会话状态

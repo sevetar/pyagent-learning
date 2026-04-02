@@ -1,0 +1,15 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "pyweb",
+      "venvPath": "C:/Users/27959/Desktop/ai/pythonfast/pyweb",
+      "venv": ".venv"
+    },
+    {
+      "root": "pyAgent/langchain",
+      "venvPath": "C:/Users/27959/Desktop/ai/pythonfast/pyAgent/langchain",
+      "venv": ".venv",
+      "extraPaths": ["C:/Users/27959/Desktop/ai/pythonfast/pyAgent/langchain/src"]
+    }
+  ]
+}
