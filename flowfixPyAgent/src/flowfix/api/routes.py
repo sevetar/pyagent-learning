@@ -123,7 +123,7 @@ router
 
 @router.post("/dispatch")
 async def dispatch(request: DispatchRequest) -> DispatchResponse:
-    """自动派单接口"""
+    """自动派单接口 - 使用 Agent 自主调用工具进行多步推理"""
     dispatcher = get_auto_dispatcher()
     result = await dispatcher.dispatch(
         ticket_id=request.ticket_id,
@@ -131,6 +131,7 @@ async def dispatch(request: DispatchRequest) -> DispatchResponse:
         fault_type=request.fault_type,
         symptom=request.symptom,
         priority=request.priority,
+        device_id=request.device_id,  # 传递 device_id 给 agent
     )
     return DispatchResponse(
         repairman_id=result.repairman_id,

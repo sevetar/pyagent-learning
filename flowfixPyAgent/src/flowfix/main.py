@@ -23,10 +23,8 @@ def api(host, port):
     """启动FastAPI服务"""
     import uvicorn
     from flowfix.api import app
-
     h = host or settings.app_host
     p = port or settings.app_port
-
     logger.info("starting_api", host=h, port=p)
     uvicorn.run(app, host=h, port=p, log_level=settings.log_level.lower())
 

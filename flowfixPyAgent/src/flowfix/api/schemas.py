@@ -24,6 +24,7 @@ class DispatchRequest(BaseModel):
     fault_type: str
     symptom: str
     priority: str = "MEDIUM"
+    device_id: Optional[int] = None  # 可选，用于查询设备历史故障
 
 
 class IngestRequest(BaseModel):

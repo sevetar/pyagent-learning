@@ -62,7 +62,6 @@ class TicketEventConsumer:
     def _process_message(self, ticket_id: int, event_type: str):
         """处理消息"""
         logger.info("processing_ticket_event", ticket_id=ticket_id, event_type=event_type)
-
         # 只处理工单完成或状态变化事件
         if event_type in ["TICKET_CREATED", "TICKET_COMPLETED", "TICKET_UPDATED"]:
             result = self.rag_ingester.ingest_ticket(ticket_id)
