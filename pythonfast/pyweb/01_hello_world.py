@@ -80,7 +80,7 @@ print("""
 === 运行方式 ===
 uvicorn 01_hello_world:app --reload
 
-然后访问:
+
 - http://127.0.0.1:8000
 - http://127.0.0.1:8000/docs  (API文档)
 """)
